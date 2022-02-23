@@ -2,78 +2,88 @@ const axios = require("axios");
 const ethers = require("ethers");
 
 const dotenv = require("dotenv").config();
-import { request, gql } from 'graphql-request'
+const { request, gql } = require("graphql-request");
 
 const main = async () => {
-  var thresh = ``;
-  var result;
-  let response = []
-  //var ctr=1;
-  const dsa_accounts = [];
-  let URL = "https://api.thegraph.com/subgraphs/name/croooook/dsa-accounts";
-  while (true) {
-    result = await axios.post(URL, {
-      query:
-        `
+    var thresh = ``;
+    var result;
+    
+    //var ctr=1;
+    const dsa_accounts = new Map();
+    let URL = "https://api.thegraph.com/subgraphs/name/croooook/dsa-accounts";
+    while (true) {
+        result = await axios.post(URL, {
+            query:
+                `
             {
                 logAccountCreateds(first: 1000, where: {id_gt:"` +
-        thresh +
-        `"}){
+                thresh +
+                `"}){
                     id
                     account
                     owner
                   }
             }
             `,
-    });
+        });
 
-    if (Object.values(result.data.data.logAccountCreateds).length === 0) break;
-    let datas = Object.values(result.data.data.logAccountCreateds);
-    for (let data of datas) {
-      dsa_accounts.push(String(data.owner));
+        if (Object.values(result.data.data.logAccountCreateds).length === 0) break;
+        let datas = Object.values(result.data.data.logAccountCreateds);
+        for (let data of datas) {
+            dsa_accounts.set(String(data.account), 1);
+        }
+        thresh =
+            result.data.data.logAccountCreateds[
+                Object.values(result.data.data.logAccountCreateds).length - 1
+            ].id;
     }
-    thresh =
-      result.data.data.logAccountCreateds[
-        Object.values(result.data.data.logAccountCreateds).length - 1
-      ].id;
-  }
-console.log(dsa_accounts.slice(0, 100))
-  thresh = ``;
-  URL =
-    "https://api.thegraph.com/subgraphs/name/thrilok209/instadapp-uniswap-v3";
-  let i = 0;
-  let end = dsa_accounts.length
-  
-  while (true) {
-    const res = await axios.post(URL, {
-      query:
-        `
-            {
-                positions(first: 1000, where: {id_gt:"` +
+    //   dsa_accounts.sort()
+
+    
+    URL =
+        "https://api.thegraph.com/subgraphs/name/thrilok209/instadapp-uniswap-v3";
+    let i = 0;
+    let end = dsa_accounts.length;
+
+    thresh = `0`;
+    URL =
+        "https://api.thegraph.com/subgraphs/name/thrilok209/instadapp-uniswap-v3";
+
+    response = [];
+    while (true) {
+        const res = await axios.post(URL, {
+            query:
+                `
+              {
+                  positions(first: 1000, where: {id_gt:"` +
                 thresh +
-                `"  owner_in : ${dsa_accounts.slice(i, i + 1000)}}){
-                    id
-                    owner
-                    pool
-                }
+                `"  }){
+                      id
+                      owner
+                      pool
+                      liquidity
+                  }
+              }
+              `,
+        });
+        console.log(Object.values(res.data.data.positions).length)
+        
+        if (Object.values(res.data.data.positions).length === 0) break;
+        const datas1 = Object.values(res.data.data.positions);
+        for (let data of datas1) {
+            if (dsa_accounts.get(data.owner) == 1) {
+                response.push(data);
             }
-            `,
-    });
-
-    if(i > end) break
-    i += 1000;
-    const res1= await request (getGraphUrl(URL),query)
-    // console.log(res.data)
-    if (!res.data.data) continue;
-    if (!res.data.data.positions) continue;
-
-    datas1 = res.data.data.positions;
-    console.log("🚀 ~ file: script.js ~ line 62 ~ main ~ datas1", datas1)
-    response = response.concat(datas1)
-    thresh =
-      res.data.data.positions[Object.values(res.data.data.positions).length - 1]
-        .id;
-  }
+        }
+        console.log("🚀 ~ file: script.js ~ line 73 ~ main ~ response", response);
+        
+        console.log(dsa_accounts.get('0xe30e4dfdbb10949c27501922f845e20cfa579f09'))
+        thresh =
+            res.data.data.positions[
+                Object.values(res.data.data.positions).length - 1
+            ].id;
+        console.log(thresh);
+    }
 };
 
 main();
