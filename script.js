@@ -7,9 +7,14 @@ const { request, gql } = require("graphql-request");
 const alchemy_key = `https://polygon-mainnet.g.alchemy.com/v2/9VPZHrKVkuzR6gAqaUZi6SpOlBZobRcO`;
 
 let stakerabi = require("./staker-abi");
-let addr_staker = "0xe34139463bA50bD61336E0c446Bd8C0867c6fE65";
+let addr_staker = "0xe34139463bA50bD61336E0c446Bd8C0867c6fE65".toLowerCase();
 let provider = new ethers.providers.JsonRpcProvider(alchemy_key);
 let staker_contract = new ethers.Contract(addr_staker, stakerabi, provider);
+
+let liqabi = require("./liquidity-abi.json");
+let addr_liq = "0x878C410028E3830f1Fe03C428FF95012111Ae1f1".toLowerCase();
+let liq_contract = new ethers.Contract(addr_liq , liqabi , provider);
+
 
 const main = async () => {
   let nft_owner = await staker_contract.deposits("62542");
@@ -46,8 +51,8 @@ const main = async () => {
         Object.values(result.data.data.logAccountCreateds).length - 1
       ].id;
   }
-  //   dsa_accounts.sort()
-console.log(dsa_accounts.get("0x3BfA7256e986C96A2826364C66dB0f7f6DFc9716"));
+ 
+console.log(dsa_accounts.get("0x4dee144e4d60ad8ae3e4b53e09669349dc0e23da"));
   
 
   thresh = `0`;
@@ -77,12 +82,15 @@ console.log(dsa_accounts.get("0x3BfA7256e986C96A2826364C66dB0f7f6DFc9716"));
     const datas1 = Object.values(res.data.data.positions);
 
     for (let data of datas1) {
-      let nft_owner = await staker_contract.deposits(data.id);
-      if (data.owner == addr_staker && dsa_accounts.get(nft_owner.owner) == 1) {
-        data.owner = nft_owner.owner;
-        response.push(data);
+      
+      if (data.owner.toLowerCase() == addr_staker ) {
+        let nft_owner = await staker_contract.deposits(data.id);
+          if(dsa_accounts.get(nft_owner.owner.toLowerCase()) == 1){
+            data.owner = nft_owner.owner.toLowerCase();
+            response.push(data);
+    }
       }
-      if (dsa_accounts.get(data.owner) == 1) {
+      else if (dsa_accounts.get(data.owner.toLowerCase()) == 1) {
         response.push(data);
       }
     }  
