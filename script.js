@@ -14,11 +14,10 @@ let staker_contract = new ethers.Contract(addr_staker, stakerabi, provider);
 let liqabi = require("./liquidity-abi.json");
 let addr_liq = "0x878C410028E3830f1Fe03C428FF95012111Ae1f1".toLowerCase();
 let liq_contract = new ethers.Contract(addr_liq, liqabi, provider);
-
+const x60 = new BigNumber("2").pow(BigNumber("60"));
 let poolabi = require("./pool-abi.json");
+
 const main = async () => {
-  let nft_owner = await staker_contract.deposits("62542");
-  console.log(nft_owner.owner);
   var thresh = ``;
   var result;
 
@@ -52,12 +51,9 @@ const main = async () => {
       ].id;
   }
 
-  console.log(dsa_accounts.get("0x4dee144e4d60ad8ae3e4b53e09669349dc0e23da"));
-
   thresh = `0`;
   URL =
-    "https://api.thegraph.com/subgraphs/name/thrilok209/instadapp-uniswap-v3";
-
+    "https://api.thegraph.com/subgraphs/name/croooook/uniswapv3-nft-position";
   response = [];
   while (true) {
     const res = await axios.post(URL, {
@@ -73,6 +69,8 @@ const main = async () => {
                       liquidity
                       tickLower
                       tickUpper
+                      token0
+                      token1
                   }
               }
               `,
@@ -83,18 +81,41 @@ const main = async () => {
     const datas1 = Object.values(res.data.data.positions);
 
     for (let data of datas1) {
-      const poolContract = new ethers.Contract(data.pool, poolabi);
+      const poolContract = new ethers.Contract(data.pool, poolabi, provider);
       const slot0 = await poolContract.slot0();
       const currentSqrtX96 = slot0[0];
-
-      if (data.owner.toLowerCase() == addr_staker) {
-        let nft_owner = await staker_contract.deposits(data.id);
-        if (dsa_accounts.get(nft_owner.owner.toLowerCase()) == 1) {
-          data.owner = nft_owner.owner.toLowerCase();
+      const lowerTick = data.tickLower;
+      const upperTick = data.tickUpper;
+      const token0 = data.token0;
+      const token1 = data.token1;
+      console.log("id", data.id);
+      const liquidity = BigNumber(data.liquidity);
+      if (liquidity > 0) {
+        const liqInUsd = await _getAmounts(
+          liq_contract,
+          currentSqrtX96,
+          lowerTick,
+          upperTick,
+          liquidity,
+          token0,
+          token1
+        );
+        console.log(
+          "🚀 ~ file: script.js ~ line 108 ~ main ~ liqInUsd",
+          liqInUsd
+        );
+        if (data.owner.toLowerCase() == addr_staker && liqInUsd > "10") {
+          let nft_owner = await staker_contract.deposits(data.id);
+          if (dsa_accounts.get(nft_owner.owner.toLowerCase()) == 1) {
+            data.owner = nft_owner.owner.toLowerCase();
+            response.push(data);
+          }
+        } else if (
+          dsa_accounts.get(data.owner.toLowerCase()) == 1 &&
+          liqInUsd > "10"
+        ) {
           response.push(data);
         }
-      } else if (dsa_accounts.get(data.owner.toLowerCase()) == 1) {
-        response.push(data);
       }
     }
     thresh =
@@ -104,8 +125,12 @@ const main = async () => {
   }
   console.log("🚀 ~ file: script.js ~ line 73 ~ main ~ response", response);
 };
-
-function calculateSqrtPriceX96(tickLower, tickUpper) {
+function calculateSqrtPriceX96(lowerTick, upperTick) {
+//   console.log(
+//     "🚀 ~ file: script.js ~ line 129 ~ calculateSqrtPriceX96 ~ lowerTick, upperTick",
+//     lowerTick,
+//     upperTick
+//   );
   if (!lowerTick || lowerTick == 0) throw new Error("lowerTick not defined");
   if (!upperTick || upperTick == 0) throw new Error("upperTick not defined");
 
@@ -121,7 +146,7 @@ function calculateSqrtPriceX96(tickLower, tickUpper) {
   const upperSqrtPriceX96 = new BigNumber(
     upperSqrtPriceX36.toString()
   ).multipliedBy(x60);
-  return [lowerSqrtPriceX96, upperSqrtPriceX96];
+  return [lowerSqrtPriceX96.toFixed(0), upperSqrtPriceX96.toFixed(0)];
 }
 
 async function _getAmounts(
@@ -129,7 +154,9 @@ async function _getAmounts(
   currentSqrtPriceX96,
   lowerTick,
   upperTick,
-  liquidity
+  liquidity,
+  token0,
+  token1
 ) {
   let [lowerSqrtPriceX96, upperSqrtPriceX96] = calculateSqrtPriceX96(
     lowerTick,
@@ -137,49 +164,41 @@ async function _getAmounts(
   );
 
   let { amount0, amount1 } = await liquidityContract.getAmountsForLiquidity(
-    currentSqrtPriceX96,
-    lowerSqrtPriceX96,
-    upperSqrtPriceX96,
-    liquidity
+    currentSqrtPriceX96.toString(),
+    lowerSqrtPriceX96.toString(),
+    upperSqrtPriceX96.toString(),
+    liquidity.toString()
   );
+//   console.log("🚀 ~ file: script.js ~ line 172 ~ { amount0, amount1 }", { amount0, amount1 })
+
+  amount0 = amount0 / 1e18;
+  amount1 = amount1 / 1e18;
+
+  amount0 = BigNumber(amount0.toString());
+  amount1 = BigNumber(amount1.toString());
 
   const tokenPrices = await axios.get(
     "https://api.instadapp.io/defi/polygon/prices"
   );
 
   const price0 =
-    tokenPrices[
-      Object.keys(tokenPrices).find(
-        (a) => a.toLowerCase() === token0.toLowerCase()
+    tokenPrices.data[
+      Object.keys(tokenPrices.data).find(
+        (a) => a.toLowerCase() == String(token0).toLowerCase()
       )
     ];
+
   const price1 =
-    tokenPrices[
-      Object.keys(tokenPrices).find(
-        (a) => a.toLowerCase() === token1.toLowerCase()
+    tokenPrices.data[
+      Object.keys(tokenPrices.data).find(
+        (a) => a.toLowerCase() == String(token1).toLowerCase()
       )
     ];
 
-  amount0Y = amount0Y
-    .multipliedBy(1e18)
-    .dividedBy(10 ** decimals0)
-    .multipliedBy(price0);
-  amount1Y = amount1Y
-    .multipliedBy(1e18)
-    .dividedBy(10 ** decimals1)
-    .multipliedBy(price1);
+  const token0USD = amount0.multipliedBy(price0).toString();
+  const token1USD = amount1.multipliedBy(price1).toString();
 
-  const token0USD = amount0
-    .multipliedBy(price0)
-    .dividedBy(10 ** decimals0)
-    .toString();
-  const token1USD = amount1
-    .multipliedBy(price1)
-    .dividedBy(10 ** decimals1)
-    .toString();
-
-  const totalAmountInUSD = BigNumber.sum(token0USD, token1USD);
-  return [new BigNumber(amount0.toString()), new BigNumber(amount1.toString())];
+  return BigNumber.sum(token0USD, token1USD).toFixed(0);
 }
 
 main();
