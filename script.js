@@ -80,7 +80,7 @@ const main = async () => {
               }
               `,
     });
-    console.log(Object.values(res.data.data.positions).length);
+    // console.log(Object.values(res.data.data.positions).length);
 
     if (Object.values(res.data.data.positions).length === 0) break;
     const datas1 = Object.values(res.data.data.positions);
@@ -93,7 +93,7 @@ const main = async () => {
       const upperTick = data.tickUpper;
       const token0 = data.token0;
       const token1 = data.token1;
-      console.log("id", data.id);
+    //   console.log("id", data.id);
       const liquidity = data.liquidity;
       if (liquidity > 0) {
         const liqInUsd = await _getAmounts(
@@ -105,10 +105,10 @@ const main = async () => {
           token0,
           token1
         );
-        console.log(
-          "🚀 ~ file: script.js ~ line 108 ~ main ~ liqInUsd",
-          liqInUsd
-        );
+        // console.log(
+        //   "🚀 ~ file: script.js ~ line 108 ~ main ~ liqInUsd",
+        //   liqInUsd
+        // );
         if (data.owner.toLowerCase() == addr_staker && liqInUsd > "10") {
           let nft_owner = await staker_contract.deposits(data.id);
           if (dsa_accounts.get(nft_owner.owner.toLowerCase()) == 1) {
@@ -126,7 +126,7 @@ const main = async () => {
     thresh =
       res.data.data.positions[Object.values(res.data.data.positions).length - 1]
         .id;
-    console.log(thresh);
+    // console.log(thresh);
   }
   console.log("🚀 ~ file: script.js ~ line 73 ~ main ~ response", response);
 };
