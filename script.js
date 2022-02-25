@@ -11,6 +11,8 @@ let addr_staker = "0xe34139463bA50bD61336E0c446Bd8C0867c6fE65".toLowerCase();
 let provider = new ethers.providers.JsonRpcProvider(alchemy_key);
 let staker_contract = new ethers.Contract(addr_staker, stakerabi, provider);
 
+
+
 let liqabi = require("./liquidity-abi.json");
 let addr_liq = "0x878C410028E3830f1Fe03C428FF95012111Ae1f1".toLowerCase();
 let liq_contract = new ethers.Contract(addr_liq, liqabi, provider);
@@ -25,6 +27,9 @@ const main = async () => {
   const dsa_accounts = new Map();
   let URL = "https://api.thegraph.com/subgraphs/name/croooook/dsa-accounts";
   while (true) {
+//     let nft_owner = await staker_contract.deposits("62542");
+// console.log(nft_owner);
+
     result = await axios.post(URL, {
       query:
         `
@@ -62,7 +67,7 @@ const main = async () => {
               {
                   positions(first: 1000, where: {id_gt:"` +
         thresh +
-        `"  }){
+        `" }){
                       id
                       owner
                       pool
@@ -89,7 +94,7 @@ const main = async () => {
       const token0 = data.token0;
       const token1 = data.token1;
       console.log("id", data.id);
-      const liquidity = BigNumber(data.liquidity);
+      const liquidity = data.liquidity;
       if (liquidity > 0) {
         const liqInUsd = await _getAmounts(
           liq_contract,
